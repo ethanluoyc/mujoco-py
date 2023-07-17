@@ -17,7 +17,7 @@ from cffi import FFI
 from Cython.Build import cythonize
 from Cython.Distutils.old_build_ext import old_build_ext as build_ext
 from mujoco_py.version import get_version
-from lockfile import LockFile
+import fasteners
 import subprocess
 
 from mujoco_py.utils import discover_mujoco, MISSING_KEY_MESSAGE
@@ -84,9 +84,17 @@ The easy solution is to `import mujoco_py` _before_ `import glfw`.
     builder = Builder(mjpro_path)
     cext_so_path = builder.get_so_file_path()
 
+    # https://github.com/openai/mujoco-py/issues/523#issuecomment-651445813
+    # Check if we have write access to the cext_so_path.
+    # If not, it's probably because mujoco-py has been installed and everything is
+    # read-only. Returning here is necessary because the lock creation will fail.
+    # It might be better to try-catch the lock but this minimizes the diff complexity.
+    if not os.access(os.path.dirname(cext_so_path), os.W_OK):
+        return load_dynamic_ext('cymj', cext_so_path)
+
     lockpath = os.path.join(os.path.dirname(cext_so_path), 'mujocopy-buildlock')
 
-    with LockFile(lockpath):
+    with fasteners.InterProcessLock(lockpath):
         mod = None
         force_rebuild = os.environ.get('MUJOCO_PY_FORCE_REBUILD')
         if force_rebuild:
