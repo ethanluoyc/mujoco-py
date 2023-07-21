@@ -17,6 +17,7 @@ clean:
 	rm -rf mujoco_py/generated/*.so
 	rm -rf mujoco_py/generated/*.dll
 	rm -rf mujoco_py/generated_cymj*
+	rm -rf mujoco_py/generated/mujocopy-buildlock
 	rm -rf mujoco_py/cythonlock_*.pyc
 	rm -rf mujoco_py/cymj.c
 	rm -rf mujoco_py/__pycache__
