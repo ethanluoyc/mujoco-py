@@ -13,7 +13,6 @@ from random import choice
 from shutil import move
 from string import ascii_lowercase
 
-import fasteners
 import numpy as np
 from Cython.Build import cythonize
 from Cython.Distutils.old_build_ext import old_build_ext as build_ext
@@ -57,6 +56,8 @@ def load_cython_ext(mujoco_path):
     to only do that once and then atomically move to the final
     location.
     """
+    from mujoco_py import cymj
+    return cymj
     if ('glfw' in sys.modules and
             'mujoco' in abspath(sys.modules["glfw"].__file__)):
         print('''
@@ -100,6 +101,7 @@ The easy solution is to `import mujoco_py` _before_ `import glfw`.
 
     lockpath = os.path.join(os.path.dirname(cext_so_path), 'mujocopy-buildlock')
 
+    import fasteners
     with fasteners.InterProcessLock(lockpath):
         mod = None
         force_rebuild = os.environ.get('MUJOCO_PY_FORCE_REBUILD')

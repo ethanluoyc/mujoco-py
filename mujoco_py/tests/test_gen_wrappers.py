@@ -31,7 +31,7 @@ def test_generated():
     fname = test_gen_wrappers()
     with open(fname) as f:
         generated_str = f.read()
-    gname = os.path.join(os.path.dirname(mujoco_py.cymj.__file__), 'wrappers.pxi')
+    gname = os.path.join(os.path.dirname(mujoco_py.__file__), 'generated', 'wrappers.pxi')
     with open(gname) as f:
         checkedin_str = f.read()
     assert generated_str == checkedin_str, 'Generated wrappers do not match'
