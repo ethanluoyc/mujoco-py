@@ -3,9 +3,57 @@ build-backend = "setuptools.build_meta"
 requires = [
     "setuptools",
     "glfw>=1.4.0",
-    "numpy>=1.11",
     "Cython>=0.27.2,<3",
-    # "imageio>=2.1.2",
     "cffi>=1.10",
-    # "fasteners~=0.15"
+    "oldest-supported-numpy"
+]
+
+[tool.cibuildwheel]
+environment.LD_LIBRARY_PATH = "/root/.mujoco/mujoco210/bin"
+environment.MUJOCO_PY_MUJOCO_PATH = "/root/.mujoco/mujoco210"
+before-all = [
+    """mkdir -p /root/.mujoco && curl \
+    -L https://mujoco.org/download/mujoco210-linux-x86_64.tar.gz -o mujoco.tar.gz && \
+    tar -xf mujoco.tar.gz -C /root/.mujoco && rm mujoco.tar.gz"""
+]
+before-build = [
+    "yum install -y mesa-libGL-devel mesa-libOSMesa-devel",
+]
+repair-wheel-command = [
+    """auditwheel repair \
+       --strip \
+       --exclude libmujoco210.so \
+       --exclude libOSMesa.so.8 \
+       --exclude libglewosmesa.so \
+       --exclude libglapi.so.0 \
+       --exclude libpcre.so.1 \
+       --exclude libselinux.so.1 \
+       --exclude libGL.so.1 -w {dest_dir} {wheel}
+    """
+]
+test-requires = [
+    "imagehash>=3.4",
+    "ipdb",
+    "Pillow>=4.0.0",
+    "pycparser>=2.17.0",
+    "pytest>=3.0.5",
+    "pytest-instafail==0.3.0",
+    "sphinx",
+    "sphinx_rtd_theme",
+    "numpydoc",
+]
+before-test = []
+test-command = [
+    "cd {project} && pytest {project}/mujoco_py/tests -m 'not requires_rendering'"
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra --import-mode=importlib"
+testpaths = [
+    "mujoco_py/tests",
+]
+markers = [
+    "requires_glfw",
+    "requires_rendering"
 ]

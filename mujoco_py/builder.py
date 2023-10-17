@@ -56,8 +56,6 @@ def load_cython_ext(mujoco_path):
     to only do that once and then atomically move to the final
     location.
     """
-    from mujoco_py import cymj
-    return cymj
     if ('glfw' in sys.modules and
             'mujoco' in abspath(sys.modules["glfw"].__file__)):
         print('''
@@ -70,7 +68,8 @@ The easy solution is to `import mujoco_py` _before_ `import glfw`.
 
     lib_path = os.path.join(mujoco_path, "bin")
     if sys.platform == 'darwin':
-        Builder = MacExtensionBuilder
+        raise RuntimeError("Unsupported for this build")
+        # Builder = MacExtensionBuilder
     elif sys.platform == 'linux':
         _ensure_set_env_var("LD_LIBRARY_PATH", lib_path)
         if os.getenv('MUJOCO_PY_FORCE_CPU') is None and get_nvidia_lib_dir() is not None:
@@ -79,6 +78,7 @@ The easy solution is to `import mujoco_py` _before_ `import glfw`.
         else:
             Builder = LinuxCPUExtensionBuilder
     elif sys.platform.startswith("win"):
+        raise RuntimeError("Unsupported for this build")
         var = "PATH"
         if var not in os.environ or lib_path not in os.environ[var].split(";"):
             raise Exception("Please add mujoco library to your PATH:\n"
@@ -86,6 +86,19 @@ The easy solution is to `import mujoco_py` _before_ `import glfw`.
         Builder = WindowsExtensionBuilder
     else:
         raise RuntimeError("Unsupported platform %s" % sys.platform)
+
+    # Builder skipped as we are not building first
+    from mujoco_py import cymj
+    return cymj
+    try:
+        from mujoco_py import cymj
+        return cymj
+    except Exception as e:
+        allow_rebuild = os.environ("MUJOCO_PY_ALLOW_REBUILD")
+        if not allow_rebuild:
+            raise e
+        print("Loading pre-compiled cymj failed, fallback to compiling")
+
 
     builder = Builder(mujoco_path)
     cext_so_path = builder.get_so_file_path()
