@@ -89,37 +89,35 @@ The easy solution is to `import mujoco_py` _before_ `import glfw`.
     builder = Builder(mujoco_path)
     cext_so_path = builder.get_so_file_path()
 
-    # lockpath = os.path.join(os.path.dirname(cext_so_path), 'mujocopy-buildlock')
-    # https://github.com/openai/mujoco-py/issues/523#issuecomment-651445813
-    # Check if we have write access to the cext_so_path.
-    # If not, it's probably because mujoco-py has been installed and everything is
-    # read-only. Returning here is necessary because the lock creation will fail.
-    # It might be better to try-catch the lock but this minimizes the diff complexity.
-    if not os.access(os.path.dirname(cext_so_path), os.W_OK):
-        return load_dynamic_ext('cymj', cext_so_path)
-
     lockpath = os.path.join(os.path.dirname(cext_so_path), 'mujocopy-buildlock')
-
-    with fasteners.InterProcessLock(lockpath):
-        mod = None
+    if exists(cext_so_path):
+        # Try to reuse the existing extension
         force_rebuild = os.environ.get('MUJOCO_PY_FORCE_REBUILD')
         if force_rebuild:
-            # Try to remove the old file, ignore errors if it doesn't exist
-            print("Removing old mujoco_py cext", cext_so_path)
-            try:
-                os.remove(cext_so_path)
-            except OSError:
-                pass
-        if exists(cext_so_path):
+            with fasteners.InterProcessLock(lockpath):
+                print("Removing old mujoco_py cext", cext_so_path)
+                try:
+                    os.remove(cext_so_path)
+                except OSError:
+                    print("Failed to remove old mujoco_py cext", cext_so_path)
+                cext_so_path = builder.build()
+                mod = load_dynamic_ext('cymj', cext_so_path)
+        else:
+            mod = None
             try:
                 mod = load_dynamic_ext('cymj', cext_so_path)
             except ImportError:
                 print("Import error. Trying to rebuild mujoco_py.")
-        if mod is None:
+                with fasteners.InterProcessLock(lockpath):
+                    cext_so_path = builder.build()
+                    mod = load_dynamic_ext('cymj', cext_so_path)
+            return mod
+    else:
+        # If extension does not exist, build it
+        with fasteners.InterProcessLock(lockpath):
             cext_so_path = builder.build()
             mod = load_dynamic_ext('cymj', cext_so_path)
-
-    return mod
+            return mod
 
 
 def _ensure_set_env_var(var_name, lib_path):
